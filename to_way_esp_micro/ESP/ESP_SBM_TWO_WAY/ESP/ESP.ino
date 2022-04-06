@@ -57,10 +57,10 @@
 // formula to encode each char: x is char (between 0 and 255)
 #define decode_formula(x)                       (255 - x)
 
-#define UDP_FIRST "aa"
-#define UDP_SECOND  "ccc"
+#define UDP_FIRST "aaaaaaaa"
+#define UDP_SECOND  "24682468246824682468"
 
-#define SERIAL_FIRST  "bbbb"
+#define SERIAL_FIRST  "1231"
 #define SERIAL_SECOND "OK"
 
 
@@ -105,6 +105,8 @@ float batADC_Avg = 0;
 uint32_t batADC_read_time = 0;
 
 char buffer_m[30];
+
+char random_num_m[30];
 
 unsigned char udp_state = 0, serial_state = 0;
 unsigned char process = 0;
@@ -164,7 +166,7 @@ if(process == 0)
       
       remoteUdpIP = Udp.remoteIP();                                                             // save sender IP for future works
       remoteUdpPort = Udp.remotePort();                                                         // save sender PORT for future works
-      int len = Udp.read(incomingPacket, 10);                                                  // read packet value and save in incomingPacket array
+      int len = Udp.read(incomingPacket, 20);                                                  // read packet value and save in incomingPacket array
       incomingPacket[len] = 0;                                                                  // define end of string      
       yield();
       switch (udp_state)
@@ -186,8 +188,11 @@ if(process == 0)
         case 1:
           if (strcmp(incomingPacket, UDP_SECOND)  == 0)
           {
+            //strncat(random_num_m, incomingPacket, 20);
+            
             yield();
-            Serial.print(UDP_SECOND);
+            //Serial.print(UDP_SECOND);
+            Serial.print(incomingPacket);
           }
           else
           {
@@ -206,15 +211,20 @@ if(process == 0)
       switch (serial_state)
       {
         case 0:
-          for(int i = 0; i<6; i++ )
+          for(int i = 0; i<20; i++ )
           {
             buffer_m[i] = 0;
           }
-          Serial.readBytes(buffer_m, 4);
-          if (strcmp(buffer_m, SERIAL_FIRST)  == 0)
+          Serial.readBytes(buffer_m, 20);
+          //if (strcmp(buffer_m, SERIAL_FIRST)  == 0)
+          if(1)
           {
             Udp.beginPacket(remoteUdpIP, remoteUdpPort);
-            Udp.write("bbbb\n");
+            //Udp.write("bbbb\n");
+            //const char buffer_str[30] = SERIAL_FIRST ;
+            
+            Udp.write( buffer_m );
+            Udp.write("\n");
             Udp.endPacket();
             serial_state = 1;
             udp_state = 1;
@@ -223,12 +233,13 @@ if(process == 0)
         break;
 
         case 1:
-          for(int i = 0; i<6; i++ )
+          for(int i = 0; i<20; i++ )
           {
             buffer_m[i] = 0;
           }
-          Serial.readBytes(buffer_m, 3);
-          if (strcmp(buffer_m, SERIAL_SECOND)  == 0)
+          Serial.readBytes(buffer_m, 20);
+          //if (strcmp(buffer_m, SERIAL_SECOND)  == 0)
+          if(1)
           {
             Udp.beginPacket(remoteUdpIP, remoteUdpPort);
             Udp.write("OK\n");
