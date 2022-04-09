@@ -57,11 +57,13 @@
 // formula to encode each char: x is char (between 0 and 255)
 #define decode_formula(x)                       (255 - x)
 
-#define UDP_FIRST "aaaaaaaa"
+#define UDP_FIRST   "aaaaaaaa"
 #define UDP_SECOND  "24682468246824682468"
+#define UDP_THIRD   "11110011"
 
 #define SERIAL_FIRST  "1231"
-#define SERIAL_SECOND "OK"
+#define SERIAL_SECOND_V "YES"
+#define SERIAL_SECOND_I "NO"
 
 
 // Library Configs ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -110,6 +112,8 @@ char random_num_m[30];
 
 unsigned char udp_state = 0, serial_state = 0;
 unsigned char process = 0;
+
+char udp_reset_str[30];
 
 void setup()
 {
@@ -166,6 +170,8 @@ if(process == 0)
       
       remoteUdpIP = Udp.remoteIP();                                                             // save sender IP for future works
       remoteUdpPort = Udp.remotePort();                                                         // save sender PORT for future works
+      //added for test
+      //for (int i =0; i < 30; i++) incomingPacket[i] = 0;
       int len = Udp.read(incomingPacket, 20);                                                  // read packet value and save in incomingPacket array
       incomingPacket[len] = 0;                                                                  // define end of string      
       yield();
@@ -194,10 +200,53 @@ if(process == 0)
             //Serial.print(UDP_SECOND);
             Serial.print(incomingPacket);
           }
+          else if (strcmp(incomingPacket, UDP_FIRST)  == 0)
+          {
+            yield();
+            
+            for (int i = 0; i < 30; i++)  udp_reset_str[i] = 0;
+            for (int i = 0; i < strlen(UDP_SECOND); i++) udp_reset_str[i] = 'R'; 
+                        
+            Serial.print(udp_reset_str);
+                        
+            udp_state = 0;
+            serial_state = 0;
+          }            
           else
           {
             Udp.beginPacket(remoteUdpIP, remoteUdpPort);
             Udp.write("INVALID SECOND UDP\n");
+            Udp.endPacket(); 
+          }
+            
+        break;
+
+        case 2:
+          if (strcmp(incomingPacket, UDP_THIRD)  == 0)
+          {
+            //strncat(random_num_m, incomingPacket, 20);
+            
+            yield();
+            //Serial.print(UDP_SECOND);
+            Serial.print(UDP_THIRD);
+            
+          }
+          else if (strcmp(incomingPacket, UDP_FIRST)  == 0)
+          {
+            yield();
+
+            for (int i = 0; i < 30; i++)  udp_reset_str[i] = 0;
+            for (int i = 0; i < strlen(UDP_THIRD); i++) udp_reset_str[i] = 'R'; 
+                        
+            Serial.print(udp_reset_str);
+            udp_state = 0;
+            serial_state = 0;
+          }                      
+          
+          else
+          {
+            Udp.beginPacket(remoteUdpIP, remoteUdpPort);
+            Udp.write("INVALID THIRD UDP\n");
             Udp.endPacket(); 
           }
             
@@ -238,30 +287,60 @@ if(process == 0)
             buffer_m[i] = 0;
           }
           Serial.readBytes(buffer_m, 20);
-          //if (strcmp(buffer_m, SERIAL_SECOND)  == 0)
-          if(1)
+          if (strcmp(buffer_m, SERIAL_SECOND_V)  == 0)         
           {
             Udp.beginPacket(remoteUdpIP, remoteUdpPort);
-            Udp.write("OK\n");
+            Udp.write("YES\n");
             Udp.endPacket();
             serial_state = 3;
-            process = 1;
-            udp_state = 0;
+            udp_state = 2;
+            //process = 1;
+            //udp_state = 0;
           }
-          else
+          else if (strcmp(buffer_m, SERIAL_SECOND_I)  == 0)
           {
             //string_buffer = String(buffer_m) + "\n";
             Udp.beginPacket(remoteUdpIP, remoteUdpPort);
-            Udp.write(buffer_m);
-            Udp.endPacket();            
+            Udp.write("NO\n");
+            Udp.endPacket();
+            serial_state = 0;
+            udp_state = 0;            
+          }
+          else
+          {
+            Udp.beginPacket(remoteUdpIP, remoteUdpPort);
+            Udp.write("Connection problem\n");
+            Udp.endPacket();
+            serial_state = 0;
+            udp_state = 0;
           }
           
         break;
 
         case 3:
-        process = 1;
-        
+        //process = 1;
+
+        for(int i = 0; i<20; i++ )
+          {
+            buffer_m[i] = 0;
+          }
+          Serial.readBytes(buffer_m, 20);
+          
+          Udp.beginPacket(remoteUdpIP, remoteUdpPort);  
+          Udp.write( buffer_m );
+          Udp.write("\n");
+          Udp.endPacket();
+          //Udp.beginPacket(remoteUdpIP, remoteUdpPort);
+          //Udp.write("YES\n");
+          //Udp.endPacket();
+          //serial_state = 3;
+          //udp_state = 2;
+          process = 1;
+          udp_state = 0;
+          serial_state = 0;
+      
         break;
+        
       }
     }   
 }
@@ -303,12 +382,13 @@ else
     remoteUdpPort = Udp.remotePort();         // save sender PORT for future works
     int len = Udp.read(incomingPacket, 255);  // read packet value and save in incomingPacket array
     incomingPacket[len] = 0;                  // define end of string
-    if(strcmp(incomingPacket, UDP_start_command) == 0)
-    {
+    //if(strcmp(incomingPacket, UDP_start_command) == 0)
+    //{
       program_lock = false;
       // Send answer that program is started
       Udp.beginPacket(remoteUdpIP, remoteUdpPort);                        // Start of UDP packet
       Udp.write("WIFI OK\r\n");                                // Write UDP message
+      //Serial.print(UDP_start_command);
       #if debug_mode == true                                              // Send ESP chip id
         ("My Chipid is "+ String(ESP.getChipId()) +"\r\n").toCharArray(replyPacketB, 100);
         //Udp.write(replyPacketB);     // Write UDP message
@@ -330,7 +410,7 @@ else
       replyPacketB_cur = 0;
 
       
-    }
+    //}
   }
 
 
