@@ -17,7 +17,7 @@
 #define debug_mode                              true
 
 // WiFi Station User and Password
-#define WiFi_SSID                               "Two_way1"
+#define WiFi_SSID                               "two_way10"
 // !! Password mast be at least 8 chars !!
 #define WiFi_password                            "12341235"
 
@@ -115,6 +115,10 @@ unsigned char process = 0;
 
 char udp_reset_str[30];
 
+
+
+void(* resetFunc) (void) = 0;
+
 void setup()
 {
   #if debug_mode != true
@@ -164,10 +168,10 @@ void loop()
 if(process == 0)
 {
   yield();
+
   packetSize = Udp.parsePacket();                                                               // Check for reciveing UDP package  
   if (packetSize)                                                                               // if package recived
-    {
-      
+    {      
       remoteUdpIP = Udp.remoteIP();                                                             // save sender IP for future works
       remoteUdpPort = Udp.remotePort();                                                         // save sender PORT for future works
       //added for test
@@ -192,15 +196,15 @@ if(process == 0)
         break;
 
         case 1:
-          if (strcmp(incomingPacket, UDP_SECOND)  == 0)
-          {
+          //if (strcmp(incomingPacket, UDP_SECOND)  == 0)
+          //{
             //strncat(random_num_m, incomingPacket, 20);
             
-            yield();
+            //yield();
             //Serial.print(UDP_SECOND);
-            Serial.print(incomingPacket);
-          }
-          else if (strcmp(incomingPacket, UDP_FIRST)  == 0)
+            //Serial.print(incomingPacket);
+          //}
+          if (strcmp(incomingPacket, UDP_FIRST)  == 0)
           {
             yield();
             
@@ -211,14 +215,21 @@ if(process == 0)
                         
             udp_state = 0;
             serial_state = 0;
-          }            
+          }
+          //added for test
+          else
+          {
+            Serial.print(incomingPacket);
+          }
+          
+          /*            
           else
           {
             Udp.beginPacket(remoteUdpIP, remoteUdpPort);
             Udp.write("INVALID SECOND UDP\n");
             Udp.endPacket(); 
           }
-            
+           */ 
         break;
 
         case 2:
@@ -345,35 +356,8 @@ if(process == 0)
     }   
 }
 
-else
+else if (process == 1)
 {
-  
-  // Calculate battery average and send to nano
-  // Sample rate of ADC is 5K
-  if(millis() - batADC_read_time > 10)
-  {
-    batADC_read_time = millis();
-    yield();     // do esp tasks which is realated to WiFi
-    batADC_last = batADC;
-    batADC = analogRead(A0); 
-    yield();     // do esp tasks which is realated to WiFi   
-    if(abs(batADC_last - batADC) <= battery_average_sample_accuracy)
-    {
-      batADC_Avg += batADC;
-      batADC_Avg_index += 1;
-    }
-     
-    if(batADC_Avg_index >= battery_average_sample_count)
-    {
-      yield();     // do esp tasks which is realated to WiFi
-      batADC_Avg = batADC_Avg / battery_average_sample_count;
-      Serial.println(String((uint32_t)(batADC_Avg * 1000)));
-      batADC_Avg = 0;
-      batADC_Avg_index = 0;
-      yield();     // do esp tasks which is realated to WiFi
-    }
-  }
-
   // Check for reciveing UDP package
   packetSize = Udp.parsePacket();
   if (packetSize)   // if package recived
@@ -382,18 +366,30 @@ else
     remoteUdpPort = Udp.remotePort();         // save sender PORT for future works
     int len = Udp.read(incomingPacket, 255);  // read packet value and save in incomingPacket array
     incomingPacket[len] = 0;                  // define end of string
+    //added for test
+    if ( strcmp(incomingPacket, UDP_FIRST) == 0 )
+    {
+      Serial.print('R');
+      process = 0;
+      udp_state = 0;
+      serial_state = 0;
+      
+      resetFunc();
+             
+    }
+        
     //if(strcmp(incomingPacket, UDP_start_command) == 0)
     //{
       program_lock = false;
       // Send answer that program is started
-      Udp.beginPacket(remoteUdpIP, remoteUdpPort);                        // Start of UDP packet
-      Udp.write("WIFI OK\r\n");                                // Write UDP message
+      //Udp.beginPacket(remoteUdpIP, remoteUdpPort);                        // Start of UDP packet
+      //Udp.write("WIFI OK\r\n");                                // Write UDP message
       //Serial.print(UDP_start_command);
       #if debug_mode == true                                              // Send ESP chip id
         ("My Chipid is "+ String(ESP.getChipId()) +"\r\n").toCharArray(replyPacketB, 100);
         //Udp.write(replyPacketB);     // Write UDP message
       #endif
-      Udp.endPacket();                                                    // End of UDP packet
+      //Udp.endPacket();                                                    // End of UDP packet
 
       // wait until new line receive from UART
       incomingPacket[0] == '\0';
@@ -405,6 +401,7 @@ else
           incomingPacket[0] = (char)(decode_formula(((int)(incomingPacket[0]))));
         #endif
         yield();     // do esp tasks which is realated to WiFi
+        if (process == 0) break;
       }
 
       replyPacketB_cur = 0;
@@ -428,6 +425,8 @@ else
     replyPacketB[replyPacketB_cur] = incomingPacket[0];   
     replyPacketB_cur++;
     if(incomingPacket[0] == '\n') break;
+
+    if (process == 0) break;
   }
 
   // Sent replyPacketB to WiFi
@@ -442,7 +441,30 @@ else
       // Serial.print(replyPacketB);
     #endif
     replyPacketB_cur = 0;
+
     }  
   
+  }
+
+  else 
+  {
+    /*
+    Udp.beginPacket(remoteUdpIP, remoteUdpPort);  
+    Udp.write("Sachagoda\n");
+    Udp.endPacket(); 
+
+    // Config ESP8266 WiFi Station with defined IPs
+    bool IPConfigResult = WiFi.softAPConfig(local_IP, gateway, subnet);
+
+    // Set ESP Mode to Access Point (AP)
+    WiFi.mode(WIFI_AP);
+    // Create WiFi Station
+    bool softAPResult = WiFi.softAP(ssid, password, WiFi_channel, WiFi_hidden, WiFi_users_limit);
+
+     Udp.begin(localUdpPort);
+
+     process = 0;
+     */
+   
   }
 }
