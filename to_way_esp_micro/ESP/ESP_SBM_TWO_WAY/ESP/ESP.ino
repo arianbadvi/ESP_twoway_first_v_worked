@@ -115,6 +115,7 @@ unsigned char process = 0;
 
 char udp_reset_str[30];
 
+char str[30];
 
 
 void(* resetFunc) (void) = 0;
@@ -159,6 +160,9 @@ void setup()
   
   // Server Config and Start UDP Server
   Udp.begin(localUdpPort);
+
+  // Send ChipID of ESP
+  Serial.printf("Chip id = %d\r\n", ESP.getChipId());
 }
 
 
@@ -184,8 +188,12 @@ if(process == 0)
         case 0:
         if (strcmp(incomingPacket, UDP_FIRST)  == 0)
         {
-            yield();
-            Serial.print(UDP_FIRST);
+          Udp.beginPacket(remoteUdpIP, remoteUdpPort);
+          sprintf(str, "Chip id = %d\r\n", ESP.getChipId());
+          Udp.write((char *)(str));
+          Udp.endPacket(); 
+          yield();
+          Serial.print(UDP_FIRST);
         }
         else
         {
@@ -256,6 +264,7 @@ if(process == 0)
           
           else
           {
+            yield();
             Udp.beginPacket(remoteUdpIP, remoteUdpPort);
             Udp.write("INVALID THIRD UDP\n");
             Udp.endPacket(); 
@@ -279,6 +288,7 @@ if(process == 0)
           //if (strcmp(buffer_m, SERIAL_FIRST)  == 0)
           if(1)
           {
+            yield();
             Udp.beginPacket(remoteUdpIP, remoteUdpPort);
             //Udp.write("bbbb\n");
             //const char buffer_str[30] = SERIAL_FIRST ;
@@ -293,6 +303,7 @@ if(process == 0)
         break;
 
         case 1:
+          yield();
           for(int i = 0; i<20; i++ )
           {
             buffer_m[i] = 0;
@@ -330,8 +341,8 @@ if(process == 0)
 
         case 3:
         //process = 1;
-
-        for(int i = 0; i<20; i++ )
+          yield();
+          for(int i = 0; i<20; i++ )
           {
             buffer_m[i] = 0;
           }
@@ -358,6 +369,7 @@ if(process == 0)
 
 else if (process == 1)
 {
+  yield();
   // Check for reciveing UDP package
   packetSize = Udp.parsePacket();
   if (packetSize)   // if package recived
