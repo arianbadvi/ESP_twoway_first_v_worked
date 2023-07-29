@@ -286,6 +286,15 @@ if(process == 0)
           }
           Serial.readBytes(buffer_m, 20);
           //if (strcmp(buffer_m, SERIAL_FIRST)  == 0)
+          
+          if (strcmp(buffer_m, "SERIAL")  == 0)
+          {
+            Serial.print("OK");
+            WiFiMode(WIFI_STA);
+            WiFi.disconnect(); 
+            WiFi.mode(WIFI_OFF);
+            delay(1000);                            
+          }
           if(1)
           {
             yield();
